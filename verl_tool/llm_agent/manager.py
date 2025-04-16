@@ -269,7 +269,7 @@ class AgentActorManager:
             turns_stats[curr_active_mask] += 1
             valid_action_stats += torch.tensor(valid_action, dtype=torch.int)
 
-            next_obs_ids = self._process_next_obs(next_obs)
+            next_obs_ids = self._process_next_obs(next_obs) # [active_size, obs_length]
             
             # Update states
             rollings = self._update_rolling_state(
@@ -346,7 +346,7 @@ class AgentActorManager:
                             meta_info: Dict) -> Tuple[Dict, Dict]:
         """Compose final generation output."""
         final_output = right_side.copy()
-        final_output['prompts'] = left_side['input_ids']
+        final_output['prompts'] = left_side['input_ids'] # [bs*n, prompt_length]
         
         # padding responses length to max_response_length
         if final_output['responses'].shape[1] < self.config.max_response_length:
@@ -354,7 +354,7 @@ class AgentActorManager:
                 final_output['responses'],
                 max_length=self.config.max_response_length,
                 padding_side='right'
-            )
+            ) # [bs*n, max_response_length]
         
         # padding response_with_info_mask length to max_response_length 
         if final_output['responses_with_info_mask'].shape[1] < self.config.max_response_length:
@@ -362,30 +362,30 @@ class AgentActorManager:
                 final_output['responses_with_info_mask'],
                 max_length=self.config.max_response_length,
                 padding_side='right'
-            )
+            ) # [bs*n, max_response_length]
         
         # Combine input IDs
         final_output['input_ids'] = torch.cat([
             left_side['input_ids'],
             final_output['responses']
-        ], dim=1)
+        ], dim=1) # [bs*n, prompt_length + max_response_length]
         
         # Create attention mask 
         final_output['attention_mask'] = torch.cat([
             self.tensor_fn.create_attention_mask(left_side['input_ids']),
             self.tensor_fn.create_attention_mask(final_output['responses'])
-        ], dim=1)
+        ], dim=1) # [bs*n, prompt_length + max_response_length]
         
         # Create observation mask 
         final_output['info_mask'] = torch.cat([
             self.tensor_fn.create_attention_mask(left_side['input_ids']),
             self.tensor_fn.create_attention_mask(final_output['responses_with_info_mask'])
-        ], dim=1)
+        ], dim=1) # [bs*n, prompt_length + max_response_length]
         
         # Create position ids
         final_output['position_ids'] = self.tensor_fn.create_position_ids(
             final_output['attention_mask']
-        )
+        ) # [bs*n, prompt_length + max_response_length]
         
         final_output = DataProto.from_dict(final_output, non_tensors=non_tensors)
         final_output.meta_info.update(meta_info)
@@ -413,10 +413,12 @@ class AgentActorManager:
         }
         print(f"Sending request to {self.config.tool_server_url}")
         print(f" - Number of non-finished actions: {len([x for x in do_actions if not x])} / {len(do_actions)}")
+        
         response = requests.post(self.config.tool_server_url, json=data)
         active_observations = response.json()['observations']
         active_dones = [int(x) for x in response.json()['dones']]
         active_valid_actions = [int(x) for x in response.json()['valids']]
+        
         print("Received observations from tool server. Samples:", len(active_observations))
         print(f" - Number of valid actions (exclusing finish action): {len([x for x in active_valid_actions if x])} / {len(active_valid_actions)}")
         print(f" - Number of dones: {len([x for x in active_dones if x])} / {len(active_dones)}")

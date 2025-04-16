@@ -29,7 +29,7 @@ python -m verl_tool.servers.serve --host $host --port $port --tool_type "firejai
 # tool_server_url=http://$host:$port/get_observation
 server_pid=$!
 echo "Server (pid=$server_pid) started at $tool_server_url"
-max_obs_length=512
+max_obs_length=256
 max_turns=1
 action_stop_tokens="\`\`\`output"
 temperature=1.0
