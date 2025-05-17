@@ -26,7 +26,7 @@ source .venv/bin/activate
 uv pip install -e verl
 uv pip install vllm==0.8.4
 uv pip install flash-attn --no-build-isolation
-uv pip install -e .[acecoder,torl]
+uv pip install -e ".[acecoder,torl]"
 uv pip install dill==0.4.0
 uv pip install fsspec==2025.3.2
 uv pip install protobuf==5.29.4
